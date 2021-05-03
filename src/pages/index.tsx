@@ -9,9 +9,11 @@ import {
   Link as ChakraLink,
   SimpleGrid,
   VStack,
+  useToast,
+  Input,
+  Spinner,
 } from "@chakra-ui/react";
 import { useSorteio } from "../hooks/useSorteio";
-import Dropzone from "../components/Dropzone";
 
 export default function Home() {
   const {
@@ -22,10 +24,12 @@ export default function Home() {
     sorteioFile,
   } = useSorteio();
   const [selectedFile, setSelectedFile] = useState<File>();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleAddSortear = (min: number, max: number) => {
     initSorteio(1, 10);
   };
+  const toast = useToast();
 
   function toObject(pairs) {
     return Array.from(pairs).reduce(
@@ -36,59 +40,85 @@ export default function Home() {
 
   function handleOnChange(e) {
     e.preventDefault();
-
+    setIsLoading(true);
     let files = e.target.files;
 
-    //const fileUrl = URL.createObjectURL(file);
-    // setSelectedFileUrl(fileUrl);
+    const type = files[0].type.trim().split("/");
 
-    let leitorDeCSV = new FileReader();
-    leitorDeCSV.readAsText(files[0]);
+    if (
+      type[0] === "image" ||
+      type[0] === "audio" ||
+      type[0] === "video" ||
+      type[1] === "vnd.octet-stream" ||
+      type[1] === "vnd.postscript" ||
+      type[1] === "vnd.ms-powerpoint"
+    ) {
+      setIsLoading(false);
+      toast({
+        title: "Erro ao selecionar o arquivo.",
+        description:
+          "Arquivo não suportado ou  erro no arquivo, tente novamente!",
+        status: "error",
+        duration: 3000,
+        position: "top-right",
+        isClosable: true,
+      });
+      return;
+    } else {
+      let leitorDeCSV = new FileReader();
+      leitorDeCSV.readAsText(files[0]);
 
-    const array = [];
+      const array = [];
 
-    //array.push(JSON.parse(line));
+      //array.push(JSON.parse(line));
 
-    leitorDeCSV.addEventListener(
-      "load",
-      () => {
-        let testData = [];
-        let splitList = leitorDeCSV.result
-          .toString()
-          .split(/s*;s*/)
-          .toString()
-          .split("\n");
+      leitorDeCSV.addEventListener(
+        "load",
+        () => {
+          let testData = [];
+          let splitList = leitorDeCSV.result
+            .toString()
+            .split(/s*;s*/)
+            .toString()
+            .split("\n");
 
-        for (let i = 0; i < splitList.length; i++) {
-          //let object = Object.assign(...array.map((v) => ({ [v]: v })));
-          const el = splitList[i].split(" ").map((v, ind) => {
-            if (ind === 0) {
-              return { name: v };
-            } else {
-              return { email: v };
-            }
+          for (let i = 0; i < splitList.length; i++) {
+            //let object = Object.assign(...array.map((v) => ({ [v]: v })));
+            const el = splitList[i].split(" ").map((v, ind) => {
+              if (ind === 0) {
+                return { name: v };
+              } else {
+                return { email: v };
+              }
+            });
+
+            testData.push(splitList[i].split(" "));
+          }
+
+          let sum = 0;
+          Object.entries(toObject(testData)).forEach(([key, value]) => {
+            sum++;
+            array.push({ id: sum, name: key, email: value });
           });
 
-          testData.push(splitList[i].split(" "));
-        }
-
-        let sum = 0;
-        Object.entries(toObject(testData)).forEach(([key, value]) => {
-          sum++;
-          array.push({ id: sum, name: key, email: value });
-        });
-
-        trataFile(array.filter((user) => user.name !== ""));
-      },
-      false
-    );
-
-    // Caso file esteja populado
-    // dispara a função.
-    if (files[0]) {
-      // leitorDeCSV.readAsDataURL(files[0]);
-      //console.log(leitorDeCSV.readAsDataURL(files[0]));
+          trataFile(array.filter((user) => user.name !== ""));
+        },
+        false
+      );
     }
+
+    toast({
+      title: "Sucesso.",
+      description:
+        "Arquivo carregado com sucesso, agora prossiga com o sorteio!",
+      status: "success",
+      duration: 3000,
+      position: "top-right",
+      isClosable: true,
+    });
+
+    setIsLoading(false);
+    return;
   }
 
   return (
@@ -105,17 +135,22 @@ export default function Home() {
         onSubmit={() => {}}
       >
         <VStack spacing="8">
+          {isLoading && <Spinner size="sm" color="gray.500" ml="4" />}
+
           <SimpleGrid
             minChildWidth="240px"
             spacing={["6", "8"]}
             mt="10"
             w="100%"
           >
-            <Dropzone onFileUploaded={setSelectedFile} />
-            <input
+            <Input
               type="file"
               name="file"
               onChange={(e) => handleOnChange(e)}
+              accept=".csv, .xls, .xlsx, text/csv, text/plain, application/csv,
+text/comma-separated-values, application/csv, application/excel,
+application/vnd.msexcel, text/anytext, application/vnd. ms-excel,
+application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             />
           </SimpleGrid>
         </VStack>
