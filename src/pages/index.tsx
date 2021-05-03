@@ -21,13 +21,14 @@ export default function Home() {
     sorteio,
     clearSorteio,
     trataFile,
+    clearSorteioFile,
     sorteioFile,
   } = useSorteio();
   const [selectedFile, setSelectedFile] = useState<File>();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleAddSortear = (min: number, max: number) => {
-    initSorteio(1, 10);
+    initSorteio(1, 122880);
   };
   const toast = useToast();
 
@@ -37,10 +38,105 @@ export default function Home() {
       {}
     );
   }
+  const [uploadedFileContents, setUploadedFileContents] = useState(null);
+  const [waitingForFileUpload, setWaitingForFileUpload] = useState<boolean>(
+    false
+  );
+
+  const readUploadedFileAsText = (inputFile) => {
+    const temporaryFileReader = new FileReader();
+
+    return new Promise((resolve, reject) => {
+      temporaryFileReader.onerror = () => {
+        temporaryFileReader.abort();
+        reject(new DOMException("Problem parsing input file."));
+      };
+
+      temporaryFileReader.onload = () => {
+        resolve(temporaryFileReader.result);
+      };
+      temporaryFileReader.readAsText(inputFile);
+    });
+  };
+
+  const uploadFile = async (e) => {
+    e.persist();
+    setIsLoading(true);
+
+    let files = e.target.files;
+
+    const type = files[0].type.trim().split("/");
+
+    if (!e.target || !files) {
+      return;
+    }
+
+    setWaitingForFileUpload(true);
+
+    // const fileList = event.target.files;
+
+    // Uploads will push to the file input's `.files` array. Get the last uploaded file.
+    const latestUploadedFile = files.item(files.length - 1);
+
+    try {
+      if (
+        type[0] === "image" ||
+        type[0] === "audio" ||
+        type[0] === "video" ||
+        type[1] === "vnd.octet-stream" ||
+        type[1] === "vnd.postscript" ||
+        type[1] === "vnd.ms-powerpoint"
+      ) {
+        setIsLoading(false);
+        toast({
+          title: "Erro ao selecionar o arquivo.",
+          description:
+            "Arquivo não suportado ou  erro no arquivo, tente novamente!",
+          status: "error",
+          duration: 3000,
+          position: "top-right",
+          isClosable: true,
+        });
+        return;
+      }
+      {
+        const fileContents = await readUploadedFileAsText(latestUploadedFile);
+
+        let testData = [];
+        let splitList = fileContents
+          .toString()
+          .split(/s*;s*/)
+          .toString()
+          .split("\n");
+
+        for await (const k of splitList) {
+          testData.push(k.split(" "));
+        }
+
+        const array = [];
+        let sum = 0;
+        Object.entries(toObject(testData)).forEach(([key, value]) => {
+          sum++;
+          array.push({ id: sum, name: key, email: value });
+        });
+
+        trataFile(array);
+
+        setWaitingForFileUpload(false);
+        setIsLoading(false);
+      }
+    } catch (e) {
+      console.log(e);
+      setWaitingForFileUpload(false);
+      setIsLoading(false);
+    }
+  };
 
   function handleOnChange(e) {
     e.preventDefault();
     setIsLoading(true);
+
+    clearSorteioFile();
     let files = e.target.files;
 
     const type = files[0].type.trim().split("/");
@@ -74,7 +170,7 @@ export default function Home() {
 
       leitorDeCSV.addEventListener(
         "load",
-        () => {
+        async () => {
           let testData = [];
           let splitList = leitorDeCSV.result
             .toString()
@@ -82,18 +178,15 @@ export default function Home() {
             .toString()
             .split("\n");
 
-          for (let i = 0; i < splitList.length; i++) {
-            //let object = Object.assign(...array.map((v) => ({ [v]: v })));
-            const el = splitList[i].split(" ").map((v, ind) => {
-              if (ind === 0) {
-                return { name: v };
-              } else {
-                return { email: v };
-              }
-            });
-
-            testData.push(splitList[i].split(" "));
+          console.log("leitorDeCSV.result::", leitorDeCSV.result);
+          console.log("leitorDeCSV.result::", leitorDeCSV.result.toString);
+          for await (const k of splitList) {
+            testData.push(k.split(" "));
           }
+          /*
+          for (let i = 0; i < splitList.length; i++) {
+            testData.push(splitList[i].split(" "));
+          }*/
 
           let sum = 0;
           Object.entries(toObject(testData)).forEach(([key, value]) => {
@@ -146,7 +239,7 @@ export default function Home() {
             <Input
               type="file"
               name="file"
-              onChange={(e) => handleOnChange(e)}
+              onChange={(e) => uploadFile(e)}
               accept=".csv, .xls, .xlsx, text/csv, text/plain, application/csv,
 text/comma-separated-values, application/csv, application/excel,
 application/vnd.msexcel, text/anytext, application/vnd. ms-excel,
@@ -188,6 +281,9 @@ application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         </Link>
 
         <Stack spacing="4">
+          {/* <pre>{JSON.stringify(sorteioFile, null, 2)}</pre>
+          <pre>{JSON.stringify(uploadedFileContents, null, 2)}</pre>*/}
+
           <pre>{JSON.stringify(sorteio, null, 2)}</pre>
         </Stack>
         <Flex alignItems="center">

@@ -13,9 +13,10 @@ interface SorteioProviderProps {
 }
 
 interface SorteioContextData {
-  sorteio: number[];
+  sorteio: any[];
   initSorteio: (min: number, max: number) => void;
   clearSorteio(): void;
+  clearSorteioFile(): void;
 
   trataFile: (file: any) => void;
   sorteioFile: any[];
@@ -39,7 +40,7 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
   });
 
   const [sorteioFile, setSorteioFile] = useState<any[]>(() => {
-    const sortListFile = Cookies.get("sorteioOlinesorteioFile");
+    const sortListFile = Cookies.get("sorteioOlinesorteioFileEE");
 
     if (sortListFile) {
       return JSON.parse(sortListFile);
@@ -55,7 +56,7 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
   }, []);
 
   const clearSorteioFile = useCallback(() => {
-    Cookies.remove("sorteioOlinesorteioFile");
+    Cookies.remove("sorteioOlinesorteioFileEE");
 
     setSorteio([] as any[]);
   }, []);
@@ -72,11 +73,7 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
   const initSorteio = (min: number, max: number) => {
     min = Math.ceil(min);
     max = Math.floor(max);
-
-    console.log('Sorteado', sorteio.length)
-    console.log("sorteioFile.length", sorteioFile.length);
-
-
+console.log("sorteioFile.length", sorteioFile.length);
     if (sorteio.length < sorteioFile.length) {
       //console.log("===>>>>randomCustomizado", randomCustomizado());
 
@@ -86,7 +83,6 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
       //const t = sorteioFile.filter((p) => sorteio.filter((s) => p.id !== s.id));
       //console.log("=>>>>Matriz:: ", t);
       if (checkSorteio && sorteio.length < sorteioFile.length) {
-       
         initSorteio(min, max);
       } else {
         setSorteio([
@@ -97,7 +93,8 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
     } else {
       toast({
         title: "Erro ao sortear.",
-        description: "Não foi possível fazer o sorteio, já foram sorteado todos, tente novamente!",
+        description:
+          "Não foi possível fazer o sorteio, já foram sorteado todos, tente novamente!",
         status: "error",
         duration: 3000,
         position: "top-right",
@@ -121,6 +118,7 @@ function SorteioProvider({ children }: SorteioProviderProps): JSX.Element {
         sorteio,
         initSorteio,
         clearSorteio,
+        clearSorteioFile,
         trataFile,
         sorteioFile,
       }}
